@@ -149,7 +149,7 @@ Ver documentación completa en: **[PROBLEMAS_SOLUCIONADOS.md](./PROBLEMAS_SOLUCI
    └─ Deploy a Nginx (SSH)
 ```
 
-### Jenkinsfile (Estilo del compañero)
+### Jenkinsfile
 
 ```groovy
 pipeline {
