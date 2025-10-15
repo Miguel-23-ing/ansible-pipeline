@@ -123,16 +123,45 @@ nginx_port: 80                     # Puerto Nginx
 - Hosting de aplicación Teclado en `/var/www/html`
 
 ---
+![alt text](image.png)
+
 
 ## 📝 Problemas Resueltos
 
-Ver documentación completa en: **[PROBLEMAS_SOLUCIONADOS.md](./PROBLEMAS_SOLUCIONADOS.md)**
+### 1. ⚠️ **Error 137 - SonarQube Elasticsearch Memory**
 
-1. ⚠️ **Ansible Playbook**: Error intencional (focal vs xenial repositories)
-2. ⚠️ **Memoria Limitada**: Optimización con Alpine Linux (595MB vs >800MB)
-3. ⚠️ **GPG Key Errors**: Cambio de Debian jdk17 a Alpine base
-4. ⚠️ **Java Module System**: Flags JVM para SonarQube Scanner con Java 17
-5. ⚠️ **JavaScript Analysis**: Instalación de Node.js 20.x
+**Problema:** Error 137 en SonarQube - Elasticsearch se cerraba por falta de memoria
+
+**Causa:** Elasticsearch requería más memoria de la disponible en la VM
+
+**Síntoma:** 
+```
+Process exited with exit value [es]: 137
+ERROR: [1] bootstrap checks failed
+[1]: initial heap size [268435456] not equal to maximum heap size [536870912]
+```
+
+**Solución:** Optimización de memoria en `docker-compose.yml`
+
+```yaml
+sonarqube:
+  environment:
+    - sonar.search.javaOpts=-Xms256m -Xmx256m -XX:+DisableExplicitGC
+    - sonar.ce.javaOpts=-Xmx256m
+    - sonar.web.javaOpts=-Xmx256m
+```
+
+**Explicación:** Reducimos la memoria de Elasticsearch a 256MB con heap sizes iguales (-Xms256m -Xmx256m) y deshabilitamos garbage collection forzado (-XX:+DisableExplicitGC) para evitar conflictos de memoria.
+
+### 2. ⚠️ **Ansible Playbook**: Error intencional (focal vs xenial repositories)
+
+### 3. ⚠️ **Memoria Limitada**: Optimización con Alpine Linux (595MB vs >800MB)
+
+### 4. ⚠️ **GPG Key Errors**: Cambio de Debian jdk17 a Alpine base
+
+### 5. ⚠️ **Java Module System**: Flags JVM para SonarQube Scanner con Java 17
+
+### 6. ⚠️ **JavaScript Analysis**: Instalación de Node.js 20.x
 
 ---
 
@@ -198,50 +227,185 @@ docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
 
 **Configurar en UI:**
 1. Manage Jenkins → System
-2. Jenkins URL: `http://4.246.221.196`
+2. Jenkins URL: `http://4.246.221.196/jenkins/`
 3. SonarQube Server:
    - Name: `SonarQube`
    - URL: `http://sonarqube:9000`
    - Token: (credential `SONAR_TOKEN`)
 
-### 3. Configurar Credenciales
+---
 
-#### Token SonarQube
+## 🔧 Configuración Manual Post-Despliegue
 
-**Generar token:**
-```bash
-curl -s -u admin:admin -X POST http://localhost:9000/api/user_tokens/generate -d name=jenkins-token
-```
+### Paso 1: Configurar SonarQube
 
-**Token obtenido**: `19bf683b399a10597b6297c8ffec712542d2168f`
+#### 1.1 Acceder a SonarQube
+- URL: `http://4.246.221.196:9000`
+- Usuario: `admin`
+- Contraseña: `admin`
 
-**Agregar en Jenkins:**
-- Manage Jenkins → Credentials → Global
-- Kind: `Secret text`
-- Secret: `19bf683b399a10597b6297c8ffec712542d2168f`
-- ID: `SONAR_TOKEN`
+#### 1.2 Cambiar contraseña (Primera vez)
+- SonarQube pedirá cambiar la contraseña
+- Nueva contraseña: `DevOps2025!@#`
 
-#### Credenciales SSH Nginx
+![Token SonarQube](images/token_generado_sonar.png)
 
-- Kind: `Username with password`
-- Username: `adminuser`
-- Password: `DevOps2025!@#`
-- ID: `jenkins-pass-nginx`
+#### 1.3 Generar Token para Jenkins
+1. Click en avatar (arriba derecha) → **"My Account"**
+2. Pestaña **"Security"**
+3. En **"Generate Tokens"**:
+   - **Name:** `Jenkins`
+   - **Type:** `Global Analysis Token`
+   - **Expires in:** `No expiration`
+   - Click **"Generate"**
+4. **⚠️ COPIAR EL TOKEN** (solo aparece una vez): `squ_xxxxx...`
 
-### 4. Crear Pipeline Job
+#### 1.4 Crear Proyecto
+1. Home → **"Projects"** → **"Create Project"** → **"Manually"**
+2. Configurar:
+   - **Project key:** `teclado`
+   - **Display name:** `Teclado`
+   - **Main branch:** `main`
+3. Click **"Set Up"**
 
-1. New Item → Pipeline: `Teclado-App-Pipeline`
-2. Build Triggers: ✅ GitHub hook trigger
-3. Pipeline:
-   - Definition: `Pipeline script from SCM`
-   - SCM: `Git`
-   - Repository: `https://github.com/Miguel-23-ing/teclado.git`
-   - Branch: `*/main`
-   - Script Path: `Jenkinsfile`
+![Resultado SonarQube](images/resultado_sonnarQube.png)
 
 ---
 
-## 🔧 Comandos Útiles
+### Paso 2: Configurar Jenkins
+
+#### 2.1 Agregar Token de SonarQube como Credencial
+
+![Credenciales SonarQube](images/Gobal_credentials_SONAR_TOKEN.png)
+
+1. **Manage Jenkins** → **"Manage Credentials"**
+2. Click **"System"** → **"Global credentials (unrestricted)"**
+3. **"Add Credentials"**:
+   - **Kind:** `Secret text`
+   - **Scope:** `Global`
+   - **Secret:** `[pegar token de SonarQube]`
+   - **ID:** `SONAR_TOKEN`
+   - **Description:** `SonarQube Token`
+4. Click **"Create"**
+
+#### 2.2 Configurar SonarQube Server en Jenkins
+
+![Configuración SonarQube en Jenkins](images/conf_sonaqube_jenkins.png)
+
+1. **Manage Jenkins** → **"Configure System"**
+2. Buscar **"SonarQube servers"**
+3. Click **"Add SonarQube"**:
+   - **Name:** `SonarQube`
+   - **Server URL:** `http://sonarqube:9000`
+   - **Server authentication token:** Seleccionar `SONAR_TOKEN`
+4. Click **"Save"**
+
+#### 2.3 Configurar Herramienta SonarQube Scanner
+
+1. **Manage Jenkins** → **"Global Tool Configuration"**
+2. Buscar **"SonarQube Scanner"**
+3. **"Add SonarQube Scanner"**:
+   - **Name:** `SonarQubeScanner`
+   - **Install automatically:** ✅ Marcado
+   - **Version:** `SonarQube Scanner 7.3.0.5189`
+4. **"Save"**
+
+#### 2.4 Agregar Credenciales SSH para Nginx
+
+![Credenciales SSH](images/Gobal_credentials_jenkins_pass.png)
+
+1. **Manage Jenkins** → **"Manage Credentials"** → **"Global credentials"**
+2. **"Add Credentials"**:
+   - **Kind:** `Username with password`
+   - **Username:** `adminuser`
+   - **Password:** `DevOps2025!@#`
+   - **ID:** `jenkins-pass-nginx`
+   - **Description:** `SSH credentials for Nginx VM`
+3. Click **"Create"**
+
+---
+
+### Paso 3: Crear Pipeline Job
+
+![Configuración Pipeline](images/configuracion_pipeline.png)
+
+#### 3.1 Crear Nuevo Pipeline
+1. Jenkins Home → **"New Item"**
+2. **Item name:** `teclado-pipeline`
+3. Seleccionar **"Pipeline"**
+4. Click **"OK"**
+
+#### 3.2 Configurar Pipeline
+**Build Triggers:**
+- ✅ **"GitHub hook trigger for GITScm polling"**
+
+**Pipeline:**
+- **Definition:** `Pipeline script from SCM`
+- **SCM:** `Git`
+- **Repository URL:** `https://github.com/Miguel-23-ing/teclado.git`
+- **Branch Specifier:** `*/main`
+- **Script Path:** `Jenkinsfile`
+
+**Save**
+
+---
+
+### Paso 4: Configurar GitHub Webhook
+
+#### 4.1 En GitHub
+1. Ir al repositorio: `https://github.com/Miguel-23-ing/teclado`
+2. **Settings** → **Webhooks** → **"Add webhook"**
+
+#### 4.2 Configurar Webhook
+- **Payload URL:** `http://4.246.221.196/jenkins/github-webhook/`
+- **Content type:** `application/json`
+- **Which events would you like to trigger this webhook?:** `Just the push event`
+- **Active:** ✅ Marcado
+- **Secret:** (dejar vacío)
+
+**Add webhook**
+
+---
+
+### Paso 5: Ejecutar Primer Build
+
+![Resultados Pipeline](images/resultados_pipeline_jenkins.png)
+
+#### 5.1 Build Manual
+1. En Jenkins → **"teclado-pipeline"** → **"Build Now"**
+2. Click en el número de build (#1)
+3. **"Console Output"** para ver logs
+
+#### 5.2 Verificar Etapas
+- ✅ **Checkout** - Descarga código
+- ✅ **SonarQube analysis** - Analiza código
+- ✅ **Deploy to nginx** - Despliega aplicación
+
+---
+
+### Paso 6: Verificar Despliegue
+
+![Aplicación Desplegada](images/teclado_desplegado.png)
+
+#### 6.1 Acceder a la Aplicación
+- **URL:** `http://4.246.162.7/`
+- Debería mostrar el **Teclado Virtual**
+
+#### 6.2 Ver Análisis en SonarQube
+- **URL:** `http://4.246.221.196:9000/projects`
+- Ver proyecto **"teclado"** con resultados
+
+---
+
+## 🎯 URLs de Acceso Final
+
+| Servicio | URL | Descripción |
+|----------|-----|-------------|
+| 🎹 **Aplicación Teclado** | `http://4.246.162.7/` | App desplegada |
+| 🔧 **Jenkins** | `http://4.246.221.196/jenkins/` | CI/CD Server |
+| 📊 **SonarQube** | `http://4.246.221.196:9000/` | Análisis de código |
+
+---## 🔧 Comandos Útiles
 
 ### Docker
 ```bash
@@ -326,6 +490,7 @@ free -h
 ## 👥 Equipo
 
 **Miguel Angel** - Ingeniería de Software V
+**Daron Mercado** - Ingeniería de Software V
 
 ---
 
