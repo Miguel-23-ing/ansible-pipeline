@@ -401,7 +401,7 @@ docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
 | 🔧 **Jenkins** | `http://4.246.221.196/jenkins/` | CI/CD Server |
 | 📊 **SonarQube** | `http://4.246.221.196:9000/` | Análisis de código |
 
----## 🔧 Comandos Útiles
+## 🔧 Comandos Útiles
 
 ### Docker
 ```bash
