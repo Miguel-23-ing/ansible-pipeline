@@ -1,0 +1,36 @@
+# Plugins base recomendados
+git:latest
+workflow-aggregator:latest
+blueocean:latest
+credentials:latest
+configuration-as-code:latest
+job-dsl:latest
+pipeline-utility-steps:latest
+github:latest
+github-branch-source:latest
+
+# Soporte para Docker
+docker-plugin:latest
+docker-workflow:latest
+
+# Soporte para SonarQube
+sonar:latest
+sonar-quality-gates:latest
+
+# Notificaciones y utilidades
+email-ext:latest
+mailer:latest
+slack:latest
+
+# Control de acceso y seguridad
+matrix-auth:latest
+role-strategy:latest
+
+# Opcional: interfaz y administración
+locale:latest
+ansicolor:latest
+timestamper:latest
+
+# Adicionales necesarios
+ssh-agent:latest
+pipeline-stage-view:latest

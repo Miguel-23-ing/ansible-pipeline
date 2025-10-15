@@ -1,0 +1,160 @@
+user {{ nginx_user }};
+worker_processes {{ nginx_worker_processes }};
+error_log /var/log/nginx/error.log warn;
+pid /var/run/nginx.pid;
+
+events {
+    worker_connections {{ nginx_worker_connections }};
+}
+
+http {
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
+    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                    '$status $body_bytes_sent "$http_referer" '
+                    '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log /var/log/nginx/access.log main;
+
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+    keepalive_timeout 65;
+    types_hash_max_size 2048;
+    client_max_body_size 100M;
+
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_types text/plain text/css text/xml text/javascript 
+               application/json application/javascript application/xml+rss 
+               application/rss+xml font/truetype font/opentype 
+               application/vnd.ms-fontobject image/svg+xml;
+
+    # Upstream para Jenkins (apunta a la VM Jenkins)
+    upstream jenkins_backend {
+        server {{ jenkins_host }}:{{ jenkins_port }};
+    }
+
+    # Upstream para SonarQube (apunta a la VM Jenkins)
+    upstream sonarqube_backend {
+        server {{ sonar_host }}:{{ sonar_port }};
+    }
+
+    server {
+        listen {{ nginx_port }};
+        server_name _;
+
+        # Página principal - Servir aplicación estática Teclado desde /var/www/html
+        location / {
+            root /var/www/html;
+            index index.html;
+            try_files $uri $uri/ /index.html =404;
+        }
+
+        # Proxy para Jenkins
+        location /jenkins/ {
+            # Importante: NO cambiar la URL en el proxy_pass, debe coincidir exactamente
+            proxy_pass http://jenkins_backend/jenkins/;
+            
+            # Headers críticos para que Jenkins detecte el proxy correctamente
+            proxy_set_header X-Forwarded-Host $http_host;
+            proxy_set_header X-Forwarded-Server $host;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Real-IP $remote_addr;
+            
+            # Header Host debe ser el original
+            proxy_set_header Host $http_host;
+            
+            # Importante: Mantener el redirect original de Jenkins
+            proxy_redirect default;
+            proxy_redirect http:// $scheme://;
+            
+            # HTTP version
+            proxy_http_version 1.1;
+
+            # Configuración para WebSockets (necesario para Jenkins)
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+
+            # Timeouts aumentados
+            proxy_connect_timeout 300;
+            proxy_send_timeout 300;
+            proxy_read_timeout 300;
+            send_timeout 300;
+            
+            # Buffers aumentados
+            proxy_buffers 8 32k;
+            proxy_buffer_size 64k;
+            client_max_body_size 500M;
+            client_body_buffer_size 128k;
+            
+            # Deshabilitar buffering para logs en tiempo real
+            proxy_buffering off;
+            proxy_request_buffering off;
+        }
+
+        # Configuración específica para GitHub Webhooks
+        location /github-webhook/ {
+            proxy_pass http://jenkins_backend/github-webhook/;
+            
+            # Headers críticos para webhooks
+            proxy_set_header X-Forwarded-Host $http_host;
+            proxy_set_header X-Forwarded-Server $host;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header Host $http_host;
+            
+            # Sin redirect para webhooks
+            proxy_redirect off;
+            
+            # HTTP version
+            proxy_http_version 1.1;
+            
+            # Timeouts específicos para webhooks
+            proxy_connect_timeout 10;
+            proxy_send_timeout 10;
+            proxy_read_timeout 10;
+            
+            # Permitir body size para payload de webhook
+            client_max_body_size 10M;
+            
+            # Sin buffering para webhooks
+            proxy_buffering off;
+            proxy_request_buffering off;
+        }
+
+        # Proxy para SonarQube
+        location /sonar/ {
+            proxy_pass http://sonarqube_backend/sonar/;
+            proxy_redirect default;
+            proxy_http_version 1.1;
+
+            # Headers necesarios para SonarQube
+            proxy_set_header Host $host:$server_port;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Forwarded-Host $host;
+            proxy_set_header X-Forwarded-Port $server_port;
+
+            # Timeouts
+            proxy_connect_timeout 150;
+            proxy_send_timeout 100;
+            proxy_read_timeout 100;
+            proxy_buffers 4 32k;
+            client_max_body_size 500M;
+        }
+
+        # Health check endpoint
+        location /health {
+            access_log off;
+            return 200 "OK\n";
+            add_header Content-Type text/plain;
+        }
+    }
+}

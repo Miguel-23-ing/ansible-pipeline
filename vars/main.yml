@@ -1,0 +1,10 @@
+---
+# Variables para la configuración de Nginx
+jenkins_host: "4.246.221.196"
+jenkins_port: 80
+sonar_host: "4.246.221.196"
+sonar_port: 9000
+nginx_port: 80
+nginx_user: "www-data"
+nginx_worker_processes: "auto"
+nginx_worker_connections: 1024
