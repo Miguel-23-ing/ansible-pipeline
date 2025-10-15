@@ -123,9 +123,6 @@ nginx_port: 80                     # Puerto Nginx
 - Hosting de aplicación Teclado en `/var/www/html`
 
 ---
-![alt text](image.png)
-
-
 ## 📝 Problemas Resueltos
 
 ### 1. ⚠️ **Error 137 - SonarQube Elasticsearch Memory**
@@ -233,7 +230,6 @@ docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
    - URL: `http://sonarqube:9000`
    - Token: (credential `SONAR_TOKEN`)
 
----
 
 ## 🔧 Configuración Manual Post-Despliegue
 
@@ -476,14 +472,6 @@ docker logs jenkins
 # Verificar memoria disponible
 free -h
 ```
-
----
-
-## 📚 Documentación Adicional
-
-- **PROBLEMAS_SOLUCIONADOS.md**: Problemas técnicos resueltos
-- **CONFIGURACION_JENKINS.md**: Guía paso a paso (en raíz del proyecto)
-- **Jenkinsfile**: Pipeline completo en repositorio Teclado
 
 ---
 
